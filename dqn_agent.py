@@ -16,20 +16,13 @@ TAU = 1e-3              # for soft update of target parameters
 LR = 5e-4               # learning rate 
 UPDATE_EVERY = 4        # how often to update the network
 
-class Agent():
-    """Interacts with and learns from the environment."""
- 
-    def __init__(self, state_size, action_size, seed):
-        """Initialize an Agent object.
+class DQNAgent():
+
+    def __init__(self, state_size, action_size, use_double=False, seed=123):
         
-        Params
-        ======
-            state_size (int): dimension of each state
-            action_size (int): dimension of each action
-            seed (int): random seed
-        """
         self.state_size = state_size
         self.action_size = action_size
+        self.use_double = use_double
         self.seed = random.seed(seed)
 
         # Q-Network
@@ -63,6 +56,7 @@ class Agent():
             state (array_like): current state
             eps (float): epsilon, for epsilon-greedy action selection
         """
+        
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
         self.qnetwork_local.eval()
         with torch.no_grad():
@@ -84,16 +78,26 @@ class Agent():
             gamma (float): discount factor
         """
         states, actions, rewards, next_states, dones = experiences
-
-        # Get max predicted Q values (for next states) from target model
-        Q_targets_next = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
-#        Q_targets_next = self.qnetwork_target(next_states).detach().max().view(1, 1)
+        
+        # Get expected Q values from local model
+        Q_expected = self.qnetwork_local(states).gather(-1, actions)
+        
+        if self.use_double: # uses Double Deep Q-Network
+            
+            # Get the best action using local model
+            best_action = self.qnetwork_local(next_states).argmax(-1, keepdim=True)
+            
+            # Evaluate the action using target model
+            max_Q = self.qnetwork_target(next_states).detach().gather(-1, best_action)
+        
+        else: # normal Deep Q-Network
+            
+            # Get max predicted Q value (for next states) from target model
+            max_Q = self.qnetwork_target(next_states).detach().max(-1, keepdim=True)[0]
+            
         
         # Compute Q targets for current states 
-        Q_targets = rewards + (gamma * Q_targets_next * (1 - dones))
-
-        # Get expected Q values from local model
-        Q_expected = self.qnetwork_local(states).gather(1, actions)
+        Q_targets = rewards + (gamma * max_Q * (1 - dones))
 
         # Compute loss and minimize
         loss = F.mse_loss(Q_expected, Q_targets)
