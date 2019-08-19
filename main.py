@@ -1,6 +1,5 @@
 # Import the necessary packages
 import gym
-import torch
 
 from utils import run_gym, train_agent
 
@@ -16,7 +15,7 @@ print('Number of actions: ', env.action_space.n)
 # Let's explore the enviroment with random acitions
 #run_gym(env)
 
-from dqn_agent import DQNAgent
+from agent import DQNAgent
 
 state_size = env.observation_space.shape[0]
 action_size = env.action_space.n
@@ -27,11 +26,9 @@ agent = DQNAgent(state_size=state_size, action_size=action_size, use_double=True
 # Let's watch an untrained agent
 #run_gym(env, get_action=lambda state: agent.act(state))
 
-#scores = train_agent(agent, env)
-
-#agent.qnetwork_local.load_state_dict(torch.load('checkpoint.pth'))
+scores = train_agent(agent, env)
 #
-run_gym(env, get_action=lambda state: agent.act(state), max_t=1000)
+#run_gym(env, get_action=lambda state: agent.act(state), max_t=1000)
 
 #import matplotlib.pyplot as plt
 #plt.plot(scores)

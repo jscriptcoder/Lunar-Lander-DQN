@@ -1,4 +1,3 @@
-import torch
 import numpy as np
 
 from collections import deque
@@ -62,7 +61,7 @@ def train_agent(agent, env, n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=
             print('\nEnvironment solved in {:d} episodes!'.format(i_episode-100))
             print('\nAverage Score: {:.2f}'.format(np.mean(scores_window)))
             
-            torch.save(agent.qnetwork_local.state_dict(), 'checkpoint.pth')
+            agent.save_weights()
             
             break
         
