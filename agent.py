@@ -6,7 +6,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from model import QNetwork, DuelingQNetwork
-from experience_replay import ReplayBuffer
+from experience_replay import ReplayBuffer, PrioritizedReplayBuffer
 from device import device
 
 BUFFER_SIZE = int(1e5)  # replay buffer size
@@ -41,9 +41,15 @@ class DQNAgent():
         else:
             self.qn_target = QNetwork(state_size, action_size, seed).to(device)
         
+        # Initialize target model parameters with local model parameters
+        self.soft_update(self.qn_local, self.qn_target, 1.0)
+        
         self.optimizer = optim.Adam(self.qn_local.parameters(), lr=LR)
 
-        self.memory = ReplayBuffer(BUFFER_SIZE, BATCH_SIZE, seed)
+        if use_priority:
+            self.memory = PrioritizedReplayBuffer(BUFFER_SIZE, BATCH_SIZE, seed)
+        else:
+            self.memory = ReplayBuffer(BUFFER_SIZE, BATCH_SIZE, seed)
             
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
@@ -59,9 +65,13 @@ class DQNAgent():
             
             # If enough samples are available in memory, get random subset and learn
             if len(self.memory) > BATCH_SIZE:
-#                experiences, idxs = self.memory.sample()
-                experiences = self.memory.sample()
-                self.learn(experiences, GAMMA)
+                
+                if self.use_priority:
+                    experiences, weights, indices = self.memory.sample()
+                    self.learn(experiences, GAMMA, weights, indices)
+                else:
+                    experiences = self.memory.sample()
+                    self.learn(experiences, GAMMA)
 
     def act(self, state, eps=0.):
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
@@ -77,7 +87,7 @@ class DQNAgent():
         else:
             return random.choice(np.arange(self.action_size))
 
-    def learn(self, experiences, gamma):
+    def learn(self, experiences, gamma, weights=None, indices=None):
         
         states = torch.from_numpy(np.vstack([e.state for e in experiences if e is not None])).float().to(device)
         actions = torch.from_numpy(np.vstack([e.action for e in experiences if e is not None])).long().to(device)
@@ -85,9 +95,9 @@ class DQNAgent():
         next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences if e is not None])).float().to(device)
         dones = torch.from_numpy(np.vstack([e.done for e in experiences if e is not None]).astype(np.uint8)).float().to(device)
   
-        
-        # Get expected Q values from local model
-        Q_expected = self.qn_local(states).gather(-1, actions)
+        if self.use_priority:
+            weights = torch.from_numpy(np.vstack(weights)).float().to(device)  
+            indices = torch.from_numpy(np.vstack(indices)).long().to(device)
         
         if self.use_double: # uses Double Deep Q-Network
             
@@ -105,17 +115,30 @@ class DQNAgent():
         
         # Compute Q targets for current states 
         Q_targets = rewards + (gamma * max_Q * (1 - dones))
+        
+        # Get expected Q values from local model
+        Q_expected = self.qn_local(states).gather(-1, actions)
 
-        # Compute loss and minimize
-        loss = F.mse_loss(Q_expected, Q_targets)
+        # Compute loss...
+        if self.use_priority:
+            loss  = (Q_expected - Q_targets).pow(2) * weights
+            prios = loss + 1e-5
+            loss  = loss.mean()
+        else:
+            loss = F.mse_loss(Q_expected, Q_targets)
+        
+        # ...and minimize
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+        
+        if self.use_priority:
+            # Update priorities based on td error
+            self.memory.update_priorities(indices.squeeze().to('cpu').data.numpy(), 
+                                          prios.squeeze().to('cpu').data.numpy())
 
         # ------------------- update target network ------------------- #
         self.soft_update(self.qn_local, self.qn_target, TAU)    
-        
-#        return loss.cpu().numpy()
 
     def soft_update(self, local_model, target_model, tau):
         """Soft update model parameters.
@@ -130,8 +153,17 @@ class DQNAgent():
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
     
-    def save_weights(self, path='double_local_weights.pth'):
-        torch.save(self.qn_local.state_dict(), path)
+    def make_filename(self, filename):
+        filename = 'dueling_' + filename if self.use_dueling else filename
+        filename = 'double_' + filename if self.use_double else filename
+        filename = 'prioritized_' + filename if self.use_priority else filename
+        
+        return filename
+        
+    def save_weights(self, filename='local_weights.pth'):
+        filename = self.make_filename(filename)
+        torch.save(self.qn_local.state_dict(), filename)
     
-    def load_weights(self, path='double_local_weights.pth'):
-        self.qn_local.load_state_dict(torch.load(path))
+    def load_weights(self, filename='local_weights.pth'):
+        filename = self.make_filename(filename)
+        self.qn_local.load_state_dict(torch.load(filename))

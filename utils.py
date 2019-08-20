@@ -1,6 +1,7 @@
 import numpy as np
-
 from collections import deque
+
+
 
 def run_gym(env, get_action=None, max_t=200):
     
@@ -18,6 +19,8 @@ def run_gym(env, get_action=None, max_t=200):
         if done: break
          
     env.close()
+
+
 
 def train_agent(agent, env, n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.995):
     """Deep Q-Learning training
