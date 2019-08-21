@@ -1,6 +1,7 @@
 import random
 import numpy as np
 from collections import namedtuple, deque
+from sum_tree import SumTree
 
 class ReplayBuffer:
     def __init__(self, buffer_size, batch_size, seed):
@@ -24,53 +25,60 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.memory)
 
-class PrioritizedReplayBuffer:
-    """Naive Prioritized Experience Replay buffer to store experience tuples."""
+class PrioritizedReplayBuffer:  # stored as ( s, a, r, s_ ) in SumTree
+    e = 0.01
+    a = 0.6
+    beta = 0.4
+    beta_increment_per_sampling = 0.001
 
     def __init__(self, buffer_size, batch_size, seed):
-        self.memory = deque(maxlen=buffer_size)  
+        self.tree = SumTree(buffer_size)
         self.batch_size = batch_size
         self.experience = namedtuple("Experience", 
                                      field_names=["state", 
                                                   "action", 
                                                   "reward", 
                                                   "next_state", 
-                                                  "done", 
-                                                  "priority"])
+                                                  "done"])
         random.seed(seed)
-    
-    def add(self, state, action, reward, next_state, done):      
-        # By default set max priority level
-        max_priority = max([m.priority for m in self.memory]) if self.memory else 1.0
-        
-        e = self.experience(state, action, reward, next_state, done, max_priority)
-        
-        self.memory.append(e)
-    
-    def sample(self, alpha=0.6, beta=0.4):
-        # Probabilities associated with each entry in memory
-        priorities = np.array([sample.priority for sample in self.memory])
-        probs  = priorities ** alpha
-        probs /= probs.sum()
-        
-        # Get indices
-        indices = np.random.choice(len(self.memory), self.batch_size, replace = False, p=probs)
-        
-        # Associated experiences
-        experiences = [self.memory[idx] for idx in indices]    
 
-        # Importance sampling weights
-        total    = len(self.memory)
-        weights  = (total * probs[indices]) ** (-beta)
-        weights /= weights.max()
-        weights  = np.array(weights, dtype=np.float32)
-        
-        return experiences, weights, indices
+    def _get_priority(self, error):
+        return (np.abs(error) + self.e) ** self.a
 
-    def update_priorities(self, indices, priorities):
-        for i, idx in enumerate(indices):
-            # A tuple is immutable so need to use "_replace" method to update it - might replace the named tuple by a dict
-            self.memory[idx] = self.memory[idx]._replace(priority=priorities[i])
+    def add(self, state, action, reward, next_state, done, error=1.0):
+        p = self._get_priority(error)
+        e = self.experience(state, action, reward, next_state, done)
+        self.tree.add(p, e)
+
+    def sample(self):
+        experiences = []
+        idxs = []
+        segment = self.tree.total() / self.batch_size
+        priorities = []
+
+        self.beta = np.min([1., self.beta + self.beta_increment_per_sampling])
+
+        for i in range(self.batch_size):
+            a = segment * i
+            b = segment * (i + 1)
+
+            s = random.uniform(a, b)
+            idx, p, data = self.tree.get(s)
             
+            if data is not None:
+                priorities.append(p)
+                experiences.append(data)
+                idxs.append(idx)
+
+        sampling_probabilities = priorities / self.tree.total()
+        weights = np.power(self.tree.n_entries * sampling_probabilities, -self.beta)
+        weights /= weights.max()
+
+        return experiences, idxs, weights
+
+    def update(self, idx, error):
+        p = self._get_priority(error)
+        self.tree.update(idx, p)
+    
     def __len__(self):
-        return len(self.memory)
+        return self.tree.n_entries

@@ -1,7 +1,24 @@
+import time
+import gym
 import numpy as np
+import matplotlib.pyplot as plt
+
+from gym.wrappers import Monitor
 from collections import deque
 
+gym.logger.set_level(40)
 
+def make_env(env_id, use_monitor=False, monitor_dir='recordings', seed=0):
+    # Instantiate the environment
+    env = gym.make(env_id)
+    
+    if use_monitor: 
+        env = Monitor(env, monitor_dir)
+        
+    env.seed(seed)
+    
+    return env
+    
 
 def run_gym(env, get_action=None, max_t=200):
     
@@ -34,7 +51,8 @@ def train_agent(agent, env, n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=
         eps_end (float): minimum value of epsilon
         eps_decay (float): multiplicative factor (per episode) for decreasing epsilon
     """
-    
+    act_time = []
+    step_time = []
     scores = []                        # list containing scores from each episode
     scores_window = deque(maxlen=100)  # last 100 scores
     eps = eps_start                    # initialize epsilon
@@ -43,9 +61,18 @@ def train_agent(agent, env, n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=
         state = env.reset()
         score = 0
         for t in range(max_t):
+            start = time.time()
             action = agent.act(state, eps)
+            end = time.time()
+            act_time.append(end - start)
+            
             next_state, reward, done, _ = env.step(action)
+            
+            start = time.time()
             agent.step(state, action, reward, next_state, done)
+            end = time.time()
+            step_time.append(end - start)
+            
             state = next_state
             score += reward
             
@@ -68,4 +95,11 @@ def train_agent(agent, env, n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=
             
             break
         
-    return scores
+    return scores, act_time, step_time
+
+def plot_scores(scores, title='Deep Q-Network', figsize=(15, 6)):
+    fig, ax = plt.subplots(figsize=figsize)
+    plt.plot(scores)
+    plt.title(title)
+    ax.set_ylabel('Score')
+    ax.set_xlabel('Epochs')

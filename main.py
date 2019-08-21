@@ -1,13 +1,7 @@
 # Import the necessary packages
-import gym
+from utils import make_env, run_gym, train_agent, plot_scores
 
-from utils import run_gym, train_agent
-
-gym.logger.set_level(40)
-
-# Instantiate the environment
-env = gym.make('LunarLander-v2')
-env.seed(0)
+env = make_env('LunarLander-v2')
 
 print('State shape: ', env.observation_space.shape)
 print('Number of actions: ', env.action_space.n)
@@ -21,14 +15,16 @@ state_size = env.observation_space.shape[0]
 action_size = env.action_space.n
 
 # Instantiate agent
-agent = DQNAgent(state_size=state_size, action_size=action_size)
+agent = DQNAgent(state_size=state_size, action_size=action_size, 
+                 use_priority=True)
+
+agent.summary()
 
 # Let's watch an untrained agent
 #run_gym(env, get_action=lambda state: agent.act(state))
 
-scores = train_agent(agent, env)
-#
-run_gym(env, get_action=lambda state: agent.act(state), max_t=1000)
+scores, act_time, step_time = train_agent(agent, env)
 
-#import matplotlib.pyplot as plt
-#plt.plot(scores)
+#plot_scores(scores)
+
+#run_gym(env, get_action=lambda state: agent.act(state), max_t=1000)
