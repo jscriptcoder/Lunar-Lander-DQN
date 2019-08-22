@@ -6,7 +6,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from model import QNetwork, DuelingQNetwork
-from experience_replay import ReplayBuffer, PrioritizedReplayBuffer
+from experience_replay import ReplayBuffer, PrioritizedReplayBuffer, NaivePrioritizedBuffer
 from device import device
 
 BUFFER_SIZE = int(1e5)  # replay buffer size
@@ -49,7 +49,8 @@ class DQNAgent:
 
         if use_priority:
             # create prioritized replay memory using SumTree
-            self.memory = PrioritizedReplayBuffer(BUFFER_SIZE, BATCH_SIZE, seed=seed)
+#            self.memory = PrioritizedReplayBuffer(BUFFER_SIZE, BATCH_SIZE, seed=seed)
+            self.memory = NaivePrioritizedBuffer(BUFFER_SIZE, BATCH_SIZE, seed=seed)
         else:
             self.memory = ReplayBuffer(BUFFER_SIZE, BATCH_SIZE, seed=seed)
             
@@ -69,8 +70,8 @@ class DQNAgent:
             if len(self.memory) > BATCH_SIZE:
                 
                 if self.use_priority:
-                    experiences, idxs, weights = self.memory.sample()
-                    self.learn(experiences, GAMMA, idxs, weights)
+                    experiences, indices, weights = self.memory.sample()
+                    self.learn(experiences, GAMMA, indices, weights)
                 else:
                     experiences = self.memory.sample()
                     self.learn(experiences, GAMMA)
@@ -123,7 +124,9 @@ class DQNAgent:
 
         # Compute loss...
         if self.use_priority:
-            loss  = ((Q_expected - Q_targets).pow(2) * weights).mean()
+            loss  = (Q_expected - Q_targets).pow(2) * weights
+            priorities = loss + 1e-5
+            loss = loss.mean()
         else:
             loss = F.mse_loss(Q_expected, Q_targets)
         
@@ -134,9 +137,8 @@ class DQNAgent:
         
         if self.use_priority:
             # Update priorities based on td error
-            errors = torch.abs(Q_expected - Q_targets).data.numpy()
-            for i, idx in enumerate(indices):
-                self.memory.update(idx, errors[i])
+#            errors = torch.abs(Q_expected - Q_targets).data.numpy()
+            self.memory.update(indices, priorities)
 
         # ------------------- update target network ------------------- #
         self.soft_update(self.qn_local, self.qn_target, TAU)    

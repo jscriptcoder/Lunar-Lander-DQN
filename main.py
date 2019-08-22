@@ -16,6 +16,8 @@ action_size = env.action_space.n
 
 # Instantiate agent
 agent = DQNAgent(state_size=state_size, action_size=action_size, 
+                 use_double=True, 
+                 use_dueling=True, 
                  use_priority=True)
 
 agent.summary()
@@ -23,8 +25,8 @@ agent.summary()
 # Let's watch an untrained agent
 #run_gym(env, get_action=lambda state: agent.act(state))
 
-scores, act_time, step_time = train_agent(agent, env)
+scores = train_agent(agent, env)
 
-#plot_scores(scores)
+plot_scores(scores, 'Prioritized Deep Q-Network')
 
-#run_gym(env, get_action=lambda state: agent.act(state), max_t=1000)
+run_gym(env, get_action=lambda state: agent.act(state), max_t=1000)
