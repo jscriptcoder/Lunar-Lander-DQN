@@ -1,12 +1,11 @@
 import random
 import numpy as np
 from collections import namedtuple, deque
-from sum_tree import SumTree
 
 
 class ReplayBuffer:
     def __init__(self, buffer_size, batch_size, seed):
-        self.memory = deque(maxlen=buffer_size)  # internal memory (deque)
+        self.buffer = deque(maxlen=buffer_size)  # internal buffer (deque)
         self.batch_size = batch_size
         self.experience = namedtuple("Experience", 
                                      field_names=["state", 
@@ -17,75 +16,22 @@ class ReplayBuffer:
         random.seed(seed)
 
     def add(self, state, action, reward, next_state, done):
-        e = self.experience(state, action, reward, next_state, done)
-        self.memory.append(e)
+        experience = self.experience(state, action, reward, next_state, done)
+        self.buffer.append(experience)
 
     def sample(self):
-        return random.sample(self.memory, k=self.batch_size)
+        return random.sample(self.buffer, k=self.batch_size)
 
     def __len__(self):
-        return len(self.memory)
+        return len(self.buffer)
 
 
 class PrioritizedReplayBuffer:
-    p_upper = 1.
-    epsilon = .01
-    alpha   = .7
-    beta    = .5
+    epsilon = 1e-5
+    alpha = .6
+    beta = .4
+    beta_inc_per_sampling = 0.001
     def __init__(self, buffer_size, batch_size, seed):
-        self.batch_size = batch_size
-        self.tree  = SumTree(buffer_size)
-        
-        self.experience = namedtuple("Experience", 
-                                     field_names=["state", 
-                                                  "action", 
-                                                  "reward", 
-                                                  "next_state", 
-                                                  "done"])
-        random.seed(seed)
-
-    def add(self, state, action, reward, next_state, done):
-        e = self.experience(state, action, reward, next_state, done)
-        p = self.tree.max_p
-        if not p:
-            p = self.p_upper
-        self.tree.store(p, e)
-            
-    def sample(self):
-        min_p   = self.tree.min_p
-        seg     = self.tree.total_p / self.batch_size
-        batches = []
-        weights = []
-        indices = []
-        a = 0
-        for i in range(self.batch_size):
-            b = a + seg
-            v = random.uniform(a, b)
-            idx, p, data = self.tree.sample(v)
-            
-            if data is not None:
-                indices.append(idx)
-                weights.append((p / min_p) ** (-self.beta))
-                batches.append(data)
-            
-            a += seg
-            self.beta = min(1., self.alpha + .01)
-            
-        return batches, indices, weights
-
-    def update(self, idx, tderr):
-        tderr += self.epsilon
-        tderr = np.minimum(tderr, self.p_upper)
-        for i in range(len(idx)):
-            self.tree.update(idx[i], tderr[i] ** self.alpha)
-    
-    def __len__(self):
-        return self.tree.n_elems
-
-
-class NaivePrioritizedBuffer:
-    def __init__(self, buffer_size, batch_size, seed, prob_alpha=0.6):
-        self.prob_alpha = prob_alpha
         self.buffer_size = buffer_size
         self.batch_size = batch_size
         self.buffer = []
@@ -97,42 +43,47 @@ class NaivePrioritizedBuffer:
                                                   "reward", 
                                                   "next_state", 
                                                   "done"])
-        random.seed(seed)
+        np.random.seed(seed)
     
     def add(self, state, action, reward, next_state, done):
-        e = self.experience(state, action, reward, next_state, done)
+        experience = self.experience(state, action, reward, next_state, done)
         
         max_prio = self.priorities.max() if self.buffer else 1.0
         
         if len(self.buffer) < self.buffer_size:
-            self.buffer.append(e)
+            self.buffer.append(experience)
         else:
-            self.buffer[self.pos] = e
+            self.buffer[self.pos] = experience
         
         self.priorities[self.pos] = max_prio
         self.pos = (self.pos + 1) % self.buffer_size
     
-    def sample(self, beta=0.4):
+    def sample(self):
         if len(self.buffer) == self.buffer_size:
             prios = self.priorities
         else:
             prios = self.priorities[:self.pos]
         
-        probs  = prios ** self.prob_alpha
+        # Sample transition
+        probs  = prios ** self.alpha
         probs /= probs.sum()
         
         indices = np.random.choice(len(self.buffer), self.batch_size, p=probs)
-        samples = [self.buffer[idx] for idx in indices]
+        experiences = [self.buffer[idx] for idx in indices]
         
-        total    = len(self.buffer)
-        weights  = (total * probs[indices]) ** (-beta)
+        self.beta = np.min([1., self.beta + self.beta_inc_per_sampling])
+        
+        # Compute importance-sampling weight
+        N = len(self.buffer)
+        weights = (N * probs[indices]) ** (-self.beta)
         weights /= weights.max()
-        weights  = np.array(weights, dtype=np.float32)
+        weights = np.array(weights, dtype=np.float32)
         
-        return samples, indices, weights
+        return experiences, indices, weights
     
-    def update(self, indices, priorities):
-        for idx, prio in zip(indices, priorities):
+    def update(self, indices, td_errors):
+        prios = np.abs(td_errors) + self.epsilon
+        for idx, prio in zip(indices, prios):
             self.priorities[idx] = prio
 
     def __len__(self):

@@ -16,9 +16,12 @@ action_size = env.action_space.n
 
 # Instantiate agent
 agent = DQNAgent(state_size=state_size, action_size=action_size, 
-                 use_double=True, 
-                 use_dueling=True, 
-                 use_priority=True)
+#                 use_double=True, 
+#                 use_dueling=True, 
+                 use_priority=True,
+#                 use_noise=True,
+                 seed=0
+                )
 
 agent.summary()
 
@@ -27,6 +30,8 @@ agent.summary()
 
 scores = train_agent(agent, env)
 
-plot_scores(scores, 'Prioritized Deep Q-Network')
+#plot_scores(scores, 'Prioritized Deep Q-Network')
+
+agent.load_weights('prioritized_local_weights.pth')
 
 run_gym(env, get_action=lambda state: agent.act(state), max_t=1000)
