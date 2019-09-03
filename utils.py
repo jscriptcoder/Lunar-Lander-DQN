@@ -7,19 +7,19 @@ from collections import deque
 
 gym.logger.set_level(40)
 
+
 def make_env(env_id, 
              use_monitor=False, 
              monitor_dir='recordings', 
              seed=0):
-    '''
-    Instantiates the OpenAI Gym environment
+    """Instantiates the OpenAI Gym environment
     
-    Params
-    ======
+    Args:
         env_id (string): OpenAI Gym environment ID
-        use_monitor (bool): whether or not to use gym.wrappers.Monitor
+        use_monitor (bool): Whether or not to use gym.wrappers.Monitor
         seed (int)
-    '''
+    """
+    
     env = gym.make(env_id) # instantiate the environment
     
     if use_monitor: 
@@ -31,15 +31,14 @@ def make_env(env_id,
     
 
 def run_gym(env, get_action=None, max_t=200):
-    '''
+    """
     Runs an environment given against actions
     
-    Params
-    ======
+    Args:
         env (Environment): OpenAI Gym environment https://gym.openai.com/envs
-        get_action (func): returns actions based on a state
-        max_t (int): maximum number of timesteps
-    '''
+        get_action (func): Returns actions based on a state
+        max_t (int): Maximum number of timesteps
+    """
     
     if get_action is None:
         get_action = lambda _: env.action_space.sample()
@@ -61,19 +60,18 @@ def run_gym(env, get_action=None, max_t=200):
 def train_agent(agent, env, 
                 n_episodes=2000, max_t=1000, 
                 eps_start=1.0, eps_end=0.01, eps_decay=0.995):
-    '''
+    """
     Deep Q-Learning training
     
-    Params
-    ======
+    Args:
         agent (DQNAgent): Deep Q-Network agent
         env (Environment): OpenAI Gym environment https://gym.openai.com/envs
-        n_episodes (int): maximum number of training episodes
-        max_t (int): maximum number of timesteps per episode
-        eps_start (float): starting value of epsilon, for epsilon-greedy action selection
-        eps_end (float): minimum value of epsilon
-        eps_decay (float): multiplicative factor (per episode) for decreasing epsilon
-    '''
+        n_episodes (int): Maximum number of training episodes
+        max_t (int): Maximum number of timesteps per episode
+        eps_start (float): Starting value of epsilon, for epsilon-greedy action selection
+        eps_end (float): Minimum value of epsilon
+        eps_decay (float): Multiplicative factor (per episode) for decreasing epsilon
+    """
     
     scores = [] # list containing scores from each episode
     scores_window = deque(maxlen=100) # last 100 scores
@@ -111,6 +109,7 @@ def train_agent(agent, env,
             break
         
     return scores
+
 
 def plot_scores(scores, title='Deep Q-Network', figsize=(15, 6)):
     fig, ax = plt.subplots(figsize=figsize)

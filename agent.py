@@ -10,7 +10,6 @@ from experience_replay import ReplayBuffer, PrioritizedReplayBuffer
 from device import device
 
 
-# This agent uses a Deep Q-Network architecture
 class DQNAgent:
 
     def __init__(self, 
@@ -27,6 +26,23 @@ class DQNAgent:
                  use_priority=False, 
                  use_noise=False,
                  seed=42):
+        """Deep Q-Network Agent
+        
+        Args:
+            state_size (int)
+            action_size (int)
+            buffer_size (int): Experience Replay buffer size
+            batch_size (int)
+            gamma (float): Discount factor, used to balance immediate and future reward
+            tau (float): Interpolation parameter for soft update target network
+            lr (float): Neural Network learning rate, 
+            update_every (int): How ofter we're gonna learn, 
+            use_double (bool): Whether or not to use double networks improvement
+            use_dueling (bool): Whether or not to use dueling network improvement
+            use_priority (bool): Whether or not to use priority experience replay
+            use_noise (bool): Whether or not to use noisy nets for exploration
+            seed (int)
+        """
         
         self.state_size = state_size
         self.action_size = action_size
@@ -57,6 +73,7 @@ class DQNAgent:
         # Initialize target model parameters with local model parameters
         self.soft_update(1.0)
         
+        # TODO: make the optimizer configurable
         self.optimizer = optim.Adam(self.qn_local.parameters(), lr=lr)
 
         if use_priority:
@@ -64,10 +81,19 @@ class DQNAgent:
         else:
             self.memory = ReplayBuffer(buffer_size, batch_size, seed=seed)
             
-        # Initialize time step (for updating every UPDATE_EVERY steps)
+        # Initialize time step (for updating every update_every steps)
         self.t_step = 0
     
     def step(self, state, action, reward, next_state, done):
+        """Step performed by the agent after interacting with the environment and receiving feedback
+        
+        Args:
+            state (int)
+            action (int)
+            reward (float)
+            next_state (int)
+            done (bool)
+        """
         
         # Save experience in replay memory
         self.memory.add(state, action, reward, next_state, done)
@@ -88,6 +114,16 @@ class DQNAgent:
                     self.learn(experiences)
 
     def act(self, state, eps=0.):
+        """Given a state what's the next action to take
+        
+        Args:
+            state (int)
+            eps (flost): Controls how often we explore before taking the greedy action
+        
+        Returns:
+            int: action to take
+        """
+        
         state = torch.from_numpy(state).float().unsqueeze(0)
         
         self.qn_local.eval()
@@ -105,6 +141,13 @@ class DQNAgent:
                 return random.choice(np.arange(self.action_size))
 
     def learn(self, experiences, indices=None, weights=None):
+        """Use a batch of experiences to calculate TD errors and update Q networks
+        
+        Args:
+            experiences: Tuple with state, action, reward, next_state and done
+            indices (Numpy array): Array of indices to update priorities (only used with PER)
+            weights (Numpy array): Importance-sampling weights (only used with PER)
+        """
         
         states = torch.from_numpy(np.vstack([e.state for e in experiences if e is not None])).float()
         actions = torch.from_numpy(np.vstack([e.action for e in experiences if e is not None])).long()
@@ -136,6 +179,7 @@ class DQNAgent:
         # Get expected Q values from local model
         q_expected = self.qn_local(states).gather(-1, actions)
         
+        # Calculate TD error to update priorities
         td_errors = q_targets - q_expected
 
         # Compute loss...
@@ -152,20 +196,18 @@ class DQNAgent:
         if self.use_priority:
             self.memory.update(indices, td_errors.detach().numpy())
 
-        # ------------------- update target network ------------------- #
+        # Update target network
         self.soft_update(self.tau)    
 
     def soft_update(self, tau):
-        '''
-        Soft update model parameters:
+        """Soft update model parameters:
             θ_target = τ*θ_local + (1 - τ)*θ_target
 
-        Params
-        ======
-            local_model (PyTorch model): weights will be copied from
-            target_model (PyTorch model): weights will be copied to
-            tau (float): interpolation parameter 
-        '''
+        Args:
+            local_model (PyTorch model): Weights will be copied from
+            target_model (PyTorch model): Weights will be copied to
+            tau (float): Interpolation parameter 
+        """
         
         for target_param, local_param in zip(self.qn_target.parameters(), self.qn_local.parameters()):
             target_param.data.copy_(tau * local_param + (1.0 - tau) * target_param)

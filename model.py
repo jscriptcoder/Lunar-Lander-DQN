@@ -6,13 +6,25 @@ from torch.nn import init, Parameter
 from torch.autograd import Variable
 
 
-# Noisy linear layer with independent Gaussian noise
-# See https://arxiv.org/abs/1706.10295
 class NoisyLinear(nn.Linear):
+    """Noisy linear layer with independent Gaussian noise:
+        Extends Torch.nn.Linear according to the paper https://arxiv.org/abs/1706.10295,
+        adding noise to the weights to aid efficient exploration. 
+        The parameters of the noise are learned with gradient descent along with the remaining network weights.
+        
+    Args:
+        in_features: Size of each input sample
+        out_features: Size of each output sample
+        sigma_init (float)
+            Default: 0.017, 
+        bias: If set to False, the layer will not learn an additive bias.
+            Default: True
+    """
     def __init__(self, 
                  in_features, 
                  out_features, 
-                 sigma_init=0.017, bias=True):
+                 sigma_init=0.017, 
+                 bias=True):
         
         super(NoisyLinear, self).__init__(in_features, out_features, bias=True)
         
@@ -50,25 +62,23 @@ class NoisyLinear(nn.Linear):
             init.uniform_(self.bias, -std, std)
 
 
-# Deep Q-Network model
-# See https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf
 class QNetwork(nn.Module):
-    def __init__(self, state_size, action_size, seed, noisy=False):
-        '''
-        Architecture:
-            Input layer:  (state_size, 32)
-            Hidden layer: (32, 64)
-            Hidden layer: (64, 128)
-            Output layer: (128, action_size)
-            
-        Params
-        ======
-            state_size (int)
-            action_size (int)
-            seed (int)
-            noisy (bool): whether or not to add noisy layers
-        '''
+    """Deep Q-Network model:
+        https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf
         
+    Args:
+        state_size (int)
+        action_size (int)
+        seed (int)
+        noisy (bool): Whether or not to add noisy layers
+    
+    Attributes:
+        fc1 (Linear): Input layer (state_size, 32)
+        fc2 (Linear | NoisyLinear): Hidden layer (32, 64)
+        fc3 (Linear | NoisyLinear): Hidden layer (64, 128)
+        fc4 (Linear | NoisyLinear): Output layer (128, action_size)
+    """
+    def __init__(self, state_size, action_size, seed, noisy=False):
         super(QNetwork, self).__init__()
         
         self.seed = torch.manual_seed(seed)
@@ -98,34 +108,31 @@ class QNetwork(nn.Module):
         return self.fc4(x)
 
 
-# Dueling Deep Q-Network model
-# See https://arxiv.org/abs/1511.06581
 class DuelingQNetwork(nn.Module):
-    def __init__(self, state_size, action_size, seed, noisy=False):
-        '''
-        Architecture:
+    """Dueling Deep Q-Network model:
+        See https://arxiv.org/abs/1511.06581
+        
+    Args:
+        state_size (int)
+        action_size (int)
+        seed (int)
+        noisy (bool): Whether or not to add noisy layers
+    
+    Attributes:
+        features (PyTorch model):
             Input layer:  (state_size, 32)
             Hidden layer: (32, 64)
             Hidden layer: (64, 128)
-            
-            Advantage branch:
-                Hidden layer: (128, 256)
-                Output layer: (256, action_size)
-            
-            Value branch:
-                Hidden layer: (128, 256)
-                Output layer: (256, 1)
-                
-            Output: action_size
-            
-        Params
-        ======
-            state_size (int)
-            action_size (int)
-            seed (int)
-            noisy (bool): whether or not to add noisy layers
-        '''
         
+        advantage (PyTorch model):
+            Hidden layer: (128, 256)
+            Output layer: (256, action_size)
+            
+        value (PyTorch model):
+            Hidden layer: (128, 256)
+            Output layer: (256, 1)
+    """
+    def __init__(self, state_size, action_size, seed, noisy=False):
         super(DuelingQNetwork, self).__init__()
         
         self.seed = torch.manual_seed(seed)
