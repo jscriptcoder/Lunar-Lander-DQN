@@ -7,9 +7,20 @@ from collections import deque
 
 gym.logger.set_level(40)
 
-def make_env(env_id, use_monitor=False, monitor_dir='recordings', seed=0):
-    # Instantiate the environment
-    env = gym.make(env_id)
+def make_env(env_id, 
+             use_monitor=False, 
+             monitor_dir='recordings', 
+             seed=0):
+    '''
+    Instantiates the OpenAI Gym environment
+    
+    Params
+    ======
+        env_id (string): OpenAI Gym environment ID
+        use_monitor (bool): whether or not to use gym.wrappers.Monitor
+        seed (int)
+    '''
+    env = gym.make(env_id) # instantiate the environment
     
     if use_monitor: 
         env = Monitor(env, monitor_dir)
@@ -20,6 +31,15 @@ def make_env(env_id, use_monitor=False, monitor_dir='recordings', seed=0):
     
 
 def run_gym(env, get_action=None, max_t=200):
+    '''
+    Runs an environment given against actions
+    
+    Params
+    ======
+        env (Environment): OpenAI Gym environment https://gym.openai.com/envs
+        get_action (func): returns actions based on a state
+        max_t (int): maximum number of timesteps
+    '''
     
     if get_action is None:
         get_action = lambda _: env.action_space.sample()
@@ -38,22 +58,26 @@ def run_gym(env, get_action=None, max_t=200):
 
 
 
-def train_agent(agent, env, n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.995):
-    """Deep Q-Learning training
+def train_agent(agent, env, 
+                n_episodes=2000, max_t=1000, 
+                eps_start=1.0, eps_end=0.01, eps_decay=0.995):
+    '''
+    Deep Q-Learning training
     
     Params
     ======
+        agent (DQNAgent): Deep Q-Network agent
         env (Environment): OpenAI Gym environment https://gym.openai.com/envs
         n_episodes (int): maximum number of training episodes
         max_t (int): maximum number of timesteps per episode
         eps_start (float): starting value of epsilon, for epsilon-greedy action selection
         eps_end (float): minimum value of epsilon
         eps_decay (float): multiplicative factor (per episode) for decreasing epsilon
-    """
+    '''
     
-    scores = []                        # list containing scores from each episode
-    scores_window = deque(maxlen=100)  # last 100 scores
-    eps = eps_start                    # initialize epsilon
+    scores = [] # list containing scores from each episode
+    scores_window = deque(maxlen=100) # last 100 scores
+    eps = eps_start # initialize epsilon
     
     for i_episode in range(1, n_episodes+1):
         state = env.reset()
@@ -67,11 +91,13 @@ def train_agent(agent, env, n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=
             
             if done: break
         
-        scores_window.append(score)       # save most recent score
-        scores.append(score)              # save most recent score
+        # Save most recent score
+        scores_window.append(score)
+        scores.append(score)
+        
         eps = max(eps_end, eps_decay*eps) # decrease epsilon
         
-        print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)), end="")
+        print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)), end='')
         
         if i_episode % 100 == 0:
             print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))

@@ -10,6 +10,7 @@ from experience_replay import ReplayBuffer, PrioritizedReplayBuffer
 from device import device
 
 
+# This agent uses a Deep Q-Network architecture
 class DQNAgent:
 
     def __init__(self, 
@@ -71,7 +72,7 @@ class DQNAgent:
         # Save experience in replay memory
         self.memory.add(state, action, reward, next_state, done)
         
-        # Learn every UPDATE_EVERY time steps.
+        # Learn every update_every time steps.
         self.t_step = (self.t_step + 1) % self.update_every
         
         if self.t_step == 0:
@@ -155,15 +156,17 @@ class DQNAgent:
         self.soft_update(self.tau)    
 
     def soft_update(self, tau):
-        """Soft update model parameters.
-        θ_target = τ*θ_local + (1 - τ)*θ_target
+        '''
+        Soft update model parameters:
+            θ_target = τ*θ_local + (1 - τ)*θ_target
 
         Params
         ======
             local_model (PyTorch model): weights will be copied from
             target_model (PyTorch model): weights will be copied to
             tau (float): interpolation parameter 
-        """
+        '''
+        
         for target_param, local_param in zip(self.qn_target.parameters(), self.qn_local.parameters()):
             target_param.data.copy_(tau * local_param + (1.0 - tau) * target_param)
     
@@ -175,12 +178,12 @@ class DQNAgent:
         
         return filename
         
-    def save_weights(self, filename='local_weights.pth'):
+    def save_weights(self, filename='local_weights.pth', path='weights'):
         filename = self.make_filename(filename)
-        torch.save(self.qn_local.state_dict(), filename)
+        torch.save(self.qn_local.state_dict(), '{}/{}'.format(path, filename))
     
-    def load_weights(self, filename='local_weights.pth'):
-        self.qn_local.load_state_dict(torch.load(filename))
+    def load_weights(self, filename='local_weights.pth', path='weights'):
+        self.qn_local.load_state_dict(torch.load('{}/{}'.format(path, filename)))
     
     def summary(self):
         print('DQNAgent:')

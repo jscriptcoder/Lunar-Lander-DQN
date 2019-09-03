@@ -18,8 +18,8 @@ action_size = env.action_space.n
 agent = DQNAgent(state_size=state_size, action_size=action_size, 
 #                 use_double=True, 
 #                 use_dueling=True, 
-                 use_priority=True,
-#                 use_noise=True,
+#                 use_priority=True,
+                 use_noise=True,
                  seed=0
                 )
 

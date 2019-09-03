@@ -7,44 +7,70 @@ from torch.autograd import Variable
 
 
 # Noisy linear layer with independent Gaussian noise
+# See https://arxiv.org/abs/1706.10295
 class NoisyLinear(nn.Linear):
-    def __init__(self, in_features, out_features, sigma_init=0.017, bias=True):
-        super(NoisyLinear, self).__init__(in_features, out_features, bias=True)  # TODO: Adapt for no bias
-        # µ^w and µ^b reuse self.weight and self.bias
+    def __init__(self, 
+                 in_features, 
+                 out_features, 
+                 sigma_init=0.017, bias=True):
+        
+        super(NoisyLinear, self).__init__(in_features, out_features, bias=True)
+        
         self.sigma_init = sigma_init
-        self.sigma_weight = Parameter(torch.Tensor(out_features, in_features))  # σ^w
-        self.sigma_bias = Parameter(torch.Tensor(out_features))  # σ^b
+        self.sigma_weight = Parameter(torch.full((out_features, in_features), sigma_init))
         self.register_buffer('epsilon_weight', torch.zeros(out_features, in_features))
-        self.register_buffer('epsilon_bias', torch.zeros(out_features))
+        
+        
+        if bias:
+            self.sigma_bias = Parameter(torch.full((out_features,), sigma_init))
+            self.register_buffer('epsilon_bias', torch.zeros(out_features))
+            
         self.reset_parameters()
 
-    def reset_parameters(self):
-        if hasattr(self, 'sigma_weight'):  # Only init after all params added (otherwise super().__init__() fails)
-            mu_range = math.sqrt(3 / self.in_features)
-            init.uniform_(self.weight, -mu_range, mu_range)
-            init.uniform_(self.bias, -mu_range, mu_range)
-            init.constant_(self.sigma_weight, self.sigma_init)
-            init.constant_(self.sigma_bias, self.sigma_init)
-
     def forward(self, input):
+        weights = self.weight
+        bias = self.bias
+        
         if self.training:
-            return F.linear(input, 
-                            self.weight + self.sigma_weight * Variable(self.epsilon_weight), 
-                            self.bias + self.sigma_bias * Variable(self.epsilon_bias))
-        else:
-            return F.linear(input, self.weight, self.bias)
+            weights = self.weight + self.sigma_weight * Variable(self.epsilon_weight)
+            
+            if self.hasBias():
+                bias = self.bias + self.sigma_bias * Variable(self.epsilon_bias)
 
-    def sample_noise(self):
-        self.epsilon_weight = torch.randn(self.out_features, self.in_features)
-        self.epsilon_bias = torch.randn(self.out_features)
+        return F.linear(input, weights, bias)
+    
+    def hasBias(self):
+        return self.bias is not None
+    
+    def reset_parameters(self):
+        std = math.sqrt(3 / self.in_features)
+        init.uniform_(self.weight, -std, std)
+        
+        if self.hasBias():
+            init.uniform_(self.bias, -std, std)
 
-    def remove_noise(self):
-        self.epsilon_weight = torch.zeros(self.out_features, self.in_features)
-        self.epsilon_bias = torch.zeros(self.out_features)
 
+# Deep Q-Network model
+# See https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf
 class QNetwork(nn.Module):
     def __init__(self, state_size, action_size, seed, noisy=False):
+        '''
+        Architecture:
+            Input layer:  (state_size, 32)
+            Hidden layer: (32, 64)
+            Hidden layer: (64, 128)
+            Output layer: (128, action_size)
+            
+        Params
+        ======
+            state_size (int)
+            action_size (int)
+            seed (int)
+            noisy (bool): whether or not to add noisy layers
+        '''
+        
         super(QNetwork, self).__init__()
+        
         self.seed = torch.manual_seed(seed)
         
         self.fc1 = nn.Linear(state_size, 32)
@@ -72,10 +98,39 @@ class QNetwork(nn.Module):
         return self.fc4(x)
 
 
+# Dueling Deep Q-Network model
+# See https://arxiv.org/abs/1511.06581
 class DuelingQNetwork(nn.Module):
     def __init__(self, state_size, action_size, seed, noisy=False):
+        '''
+        Architecture:
+            Input layer:  (state_size, 32)
+            Hidden layer: (32, 64)
+            Hidden layer: (64, 128)
+            
+            Advantage branch:
+                Hidden layer: (128, 256)
+                Output layer: (256, action_size)
+            
+            Value branch:
+                Hidden layer: (128, 256)
+                Output layer: (256, 1)
+                
+            Output: action_size
+            
+        Params
+        ======
+            state_size (int)
+            action_size (int)
+            seed (int)
+            noisy (bool): whether or not to add noisy layers
+        '''
+        
         super(DuelingQNetwork, self).__init__()
+        
         self.seed = torch.manual_seed(seed)
+        
+        # TODO: add noisy layers
         
         self.features = nn.Sequential(
             nn.Linear(state_size, 32),
