@@ -2,10 +2,25 @@
 
 The goal of this repository is to study relatively in depth value-based Reinforcement Learning algorithms using deep neural networks as function approximators. We're gonna use Deep Q-Network algorithm and different improvements to solve the OpenAI Gym [LunarLander](https://gym.openai.com/envs/LunarLander-v2/) environment.
 
-### Algorithms and papers:
+### Implemented algorithms and their papers:
 1. [x] Deep Q Learning (DQN):
     - [Playing Atari with Deep Reinforcement Learning](https://arxiv.org/abs/1312.5602)
     - [Human-level control through deep reinforcementlearning](http://www.readcube.com/articles/10.1038/nature14236)
 
 2. [x] Double DQN:
     - [Deep Reinforcement Learning with Double Q-learning](https://arxiv.org/abs/1509.06461)
+
+3. [x] Dueling DQN:
+    - [Dueling Network Architectures for Deep Reinforcement Learning](https://arxiv.org/abs/1511.06581)
+
+4. [x] DQN with prioritized replay buffer
+    - [Prioritized Experience Replay](https://arxiv.org/abs/1511.05952)
+
+5. [x] DQN with noisy nets
+    - [Noisy Networks for Exploration](https://arxiv.org/abs/1706.10295)
+
+6. [ ] Categorical DQN
+    - [A Distributional Perspective on Reinforcement Learning](https://arxiv.org/abs/1707.06887)
+
+7 [ ] Rainbow DQN
+    - [Rainbow: Combining Improvements in Deep Reinforcement Learning](https://arxiv.org/abs/1710.02298)
