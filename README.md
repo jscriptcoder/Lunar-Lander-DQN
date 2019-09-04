@@ -13,14 +13,20 @@ The goal of this repository is to study relatively in depth value-based Reinforc
 3. [x] Dueling DQN:
     - [Dueling Network Architectures for Deep Reinforcement Learning](https://arxiv.org/abs/1511.06581)
 
-4. [x] DQN with prioritized replay buffer
+4. [x] DQN with prioritized replay buffer:
     - [Prioritized Experience Replay](https://arxiv.org/abs/1511.05952)
 
-5. [x] DQN with noisy nets
+5. [x] DQN with noisy nets:
     - [Noisy Networks for Exploration](https://arxiv.org/abs/1706.10295)
 
-6. [ ] Categorical DQN
+6. [ ] Categorical DQN:
     - [A Distributional Perspective on Reinforcement Learning](https://arxiv.org/abs/1707.06887)
 
-7 [ ] Rainbow DQN
+7. [ ] Quantile Regression DQN:
+    - [Distributional Reinforcement Learning with Quantile Regression](https://arxiv.org/abs/1710.10044)
+
+8. [ ] Hierarchical DQN:
+    - [Hierarchical Deep Reinforcement Learning: Integrating Temporal Abstraction and Intrinsic Motivation](https://arxiv.org/abs/1604.06057)
+
+9. [ ] Rainbow DQN:
     - [Rainbow: Combining Improvements in Deep Reinforcement Learning](https://arxiv.org/abs/1710.02298)
