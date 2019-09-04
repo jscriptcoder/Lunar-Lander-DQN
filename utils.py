@@ -16,7 +16,7 @@ def make_env(env_id,
     
     Args:
         env_id (string): OpenAI Gym environment ID
-        use_monitor (bool): Whether or not to use gym.wrappers.Monitor
+        use_monitor (bool): whether or not to use gym.wrappers.Monitor
         seed (int)
     """
     
@@ -31,13 +31,12 @@ def make_env(env_id,
     
 
 def run_gym(env, get_action=None, max_t=200):
-    """
-    Runs an environment given against actions
+    """Runs an environment given against actions
     
     Args:
         env (Environment): OpenAI Gym environment https://gym.openai.com/envs
-        get_action (func): Returns actions based on a state
-        max_t (int): Maximum number of timesteps
+        get_action (func): returns actions based on a state
+        max_t (int): maximum number of timesteps
     """
     
     if get_action is None:
@@ -60,17 +59,18 @@ def run_gym(env, get_action=None, max_t=200):
 def train_agent(agent, env, 
                 n_episodes=2000, max_t=1000, 
                 eps_start=1.0, eps_end=0.01, eps_decay=0.995):
-    """
-    Deep Q-Learning training
+    """Deep Q-Learning training
     
     Args:
         agent (DQNAgent): Deep Q-Network agent
         env (Environment): OpenAI Gym environment https://gym.openai.com/envs
-        n_episodes (int): Maximum number of training episodes
-        max_t (int): Maximum number of timesteps per episode
-        eps_start (float): Starting value of epsilon, for epsilon-greedy action selection
-        eps_end (float): Minimum value of epsilon
-        eps_decay (float): Multiplicative factor (per episode) for decreasing epsilon
+        n_episodes (int): maximum number of training episodes
+        max_t (int): maximum number of timesteps per episode
+        eps_start (float): starting value of epsilon, 
+            for epsilon-greedy action selection
+        eps_end (float): minimum value of epsilon
+        eps_decay (float): multiplicative factor (per episode) 
+            for decreasing epsilon
     """
     
     scores = [] # list containing scores from each episode
@@ -95,10 +95,12 @@ def train_agent(agent, env,
         
         eps = max(eps_end, eps_decay*eps) # decrease epsilon
         
-        print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)), end='')
+        print('\rEpisode {}\tAverage Score: {:.2f}'.format(
+                i_episode, np.mean(scores_window)), end='')
         
         if i_episode % 100 == 0:
-            print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))
+            print('\rEpisode {}\tAverage Score: {:.2f}'.format(
+                    i_episode, np.mean(scores_window)))
             
         if np.mean(scores_window)>=200.0:
             print('\nEnvironment solved in {:d} episodes!'.format(i_episode-100))
@@ -111,9 +113,16 @@ def train_agent(agent, env,
     return scores
 
 
-def plot_scores(scores, title='Deep Q-Network', figsize=(15, 6)):
+def plot_scores(scores, title='Deep Q-Network', figsize=(15, 6), polyfit_deg=None):
     fig, ax = plt.subplots(figsize=figsize)
     plt.plot(scores)
+    
+    if polyfit_deg is not None:
+        x = list(range(len(scores)))
+        degs = np.polyfit(x, scores, polyfit_deg)
+        p = np.poly1d(degs)
+        plt.plot(p(x), linewidth=3)
+    
     plt.title(title)
     ax.set_ylabel('Score')
     ax.set_xlabel('Epochs')

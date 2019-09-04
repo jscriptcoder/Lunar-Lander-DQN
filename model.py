@@ -8,16 +8,18 @@ from torch.autograd import Variable
 
 class NoisyLinear(nn.Linear):
     """Noisy linear layer with independent Gaussian noise:
-        Extends Torch.nn.Linear according to the paper https://arxiv.org/abs/1706.10295,
+        Extends Torch.nn.Linear according to the paper:
+            https://arxiv.org/abs/1706.10295,
         adding noise to the weights to aid efficient exploration. 
-        The parameters of the noise are learned with gradient descent along with the remaining network weights.
+        The parameters of the noise are learned with gradient descent along with 
+        the remaining network weights.
         
     Args:
-        in_features: Size of each input sample
-        out_features: Size of each output sample
+        in_features: size of each input sample
+        out_features: size of each output sample
         sigma_init (float)
             Default: 0.017, 
-        bias: If set to False, the layer will not learn an additive bias.
+        bias: if set to False, the layer will not learn an additive bias.
             Default: True
     """
     def __init__(self, 
@@ -29,8 +31,10 @@ class NoisyLinear(nn.Linear):
         super(NoisyLinear, self).__init__(in_features, out_features, bias=True)
         
         self.sigma_init = sigma_init
-        self.sigma_weight = Parameter(torch.full((out_features, in_features), sigma_init))
-        self.register_buffer('epsilon_weight', torch.zeros(out_features, in_features))
+        self.sigma_weight = Parameter(torch.full((out_features, 
+                                                  in_features), sigma_init))
+        self.register_buffer('epsilon_weight', torch.zeros(out_features, 
+                                                           in_features))
         
         
         if bias:
@@ -70,7 +74,7 @@ class QNetwork(nn.Module):
         state_size (int)
         action_size (int)
         seed (int)
-        noisy (bool): Whether or not to add noisy layers
+        noisy (bool): whether or not to add noisy layers
     
     Attributes:
         fc1 (Linear): Input layer (state_size, 32)
@@ -116,19 +120,19 @@ class DuelingQNetwork(nn.Module):
         state_size (int)
         action_size (int)
         seed (int)
-        noisy (bool): Whether or not to add noisy layers
+        noisy (bool): whether or not to add noisy layers
     
     Attributes:
-        features (PyTorch model):
+        features (Sequential):
             Input layer:  (state_size, 32)
             Hidden layer: (32, 64)
             Hidden layer: (64, 128)
         
-        advantage (PyTorch model):
+        advantage (Sequential):
             Hidden layer: (128, 256)
             Output layer: (256, action_size)
             
-        value (PyTorch model):
+        value (Sequential):
             Hidden layer: (128, 256)
             Output layer: (256, 1)
     """

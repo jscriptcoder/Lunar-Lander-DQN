@@ -33,14 +33,15 @@ class DQNAgent:
             action_size (int)
             buffer_size (int): Experience Replay buffer size
             batch_size (int)
-            gamma (float): Discount factor, used to balance immediate and future reward
-            tau (float): Interpolation parameter for soft update target network
-            lr (float): Neural Network learning rate, 
-            update_every (int): How ofter we're gonna learn, 
-            use_double (bool): Whether or not to use double networks improvement
-            use_dueling (bool): Whether or not to use dueling network improvement
-            use_priority (bool): Whether or not to use priority experience replay
-            use_noise (bool): Whether or not to use noisy nets for exploration
+            gamma (float): 
+                discount factor, used to balance immediate and future reward
+            tau (float): interpolation parameter for soft update target network
+            lr (float): neural Network learning rate, 
+            update_every (int): how ofter we're gonna learn, 
+            use_double (bool): whether or not to use double networks improvement
+            use_dueling (bool): whether or not to use dueling network improvement
+            use_priority (bool): whether or not to use priority experience replay
+            use_noise (bool): whether or not to use noisy nets for exploration
             seed (int)
         """
         
@@ -61,14 +62,26 @@ class DQNAgent:
 
         # Q-Network
         if use_dueling:
-            self.qn_local = DuelingQNetwork(state_size, action_size, seed, noisy=use_noise)
+            self.qn_local = DuelingQNetwork(state_size, 
+                                            action_size, 
+                                            seed, 
+                                            noisy=use_noise).to(device)
         else:
-            self.qn_local = QNetwork(state_size, action_size, seed, noisy=use_noise)
+            self.qn_local = QNetwork(state_size, 
+                                     action_size, 
+                                     seed, 
+                                     noisy=use_noise).to(device)
         
         if use_dueling:
-            self.qn_target = DuelingQNetwork(state_size, action_size, seed, noisy=use_noise)
+            self.qn_target = DuelingQNetwork(state_size, 
+                                             action_size, 
+                                             seed, 
+                                             noisy=use_noise).to(device)
         else:
-            self.qn_target = QNetwork(state_size, action_size, seed, noisy=use_noise)
+            self.qn_target = QNetwork(state_size, 
+                                      action_size, 
+                                      seed, 
+                                      noisy=use_noise).to(device)
         
         # Initialize target model parameters with local model parameters
         self.soft_update(1.0)
@@ -85,7 +98,8 @@ class DQNAgent:
         self.t_step = 0
     
     def step(self, state, action, reward, next_state, done):
-        """Step performed by the agent after interacting with the environment and receiving feedback
+        """Step performed by the agent 
+        after interacting with the environment and receiving feedback
         
         Args:
             state (int)
@@ -118,13 +132,14 @@ class DQNAgent:
         
         Args:
             state (int)
-            eps (flost): Controls how often we explore before taking the greedy action
+            eps (flost): 
+                controls how often we explore before taking the greedy action
         
         Returns:
             int: action to take
         """
         
-        state = torch.from_numpy(state).float().unsqueeze(0)
+        state = torch.from_numpy(state).float().unsqueeze(0).to(device)
         
         self.qn_local.eval()
         with torch.no_grad():
@@ -144,20 +159,31 @@ class DQNAgent:
         """Use a batch of experiences to calculate TD errors and update Q networks
         
         Args:
-            experiences: Tuple with state, action, reward, next_state and done
-            indices (Numpy array): Array of indices to update priorities (only used with PER)
-            weights (Numpy array): Importance-sampling weights (only used with PER)
+            experiences: tuple with state, action, reward, next_state and done
+            indices (Numpy array): 
+                array of indices to update priorities (only used with PER)
+            weights (Numpy array): 
+                importance-sampling weights (only used with PER)
         """
         
-        states = torch.from_numpy(np.vstack([e.state for e in experiences if e is not None])).float()
-        actions = torch.from_numpy(np.vstack([e.action for e in experiences if e is not None])).long()
-        rewards = torch.from_numpy(np.vstack([e.reward for e in experiences if e is not None])).float()
-        next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences if e is not None])).float()
-        dones = torch.from_numpy(np.vstack([e.done for e in experiences if e is not None]).astype(np.uint8)).float()
+        states = torch.from_numpy(
+                np.vstack([e.state for e in experiences if e is not None]))\
+                .float().to(device)
+        actions = torch.from_numpy(
+                np.vstack([e.action for e in experiences if e is not None]))\
+                .long().to(device)
+        rewards = torch.from_numpy(
+                np.vstack([e.reward for e in experiences if e is not None]))\
+                .float().to(device)
+        next_states = torch.from_numpy(
+                np.vstack([e.next_state for e in experiences if e is not None]))\
+                .float().to(device)
+        dones = torch.from_numpy(
+                np.vstack([e.done for e in experiences if e is not None])\
+                .astype(np.uint8)).float().to(device)
         
         if self.use_priority:
-            indices = torch.from_numpy(np.vstack(indices)).long()
-            weights = torch.from_numpy(np.vstack(weights)).float()
+            weights = torch.from_numpy(np.vstack(weights)).float().to(device)
         
         if self.use_double: # uses Double Deep Q-Network
             
@@ -178,13 +204,12 @@ class DQNAgent:
         
         # Get expected Q values from local model
         q_expected = self.qn_local(states).gather(-1, actions)
-        
-        # Calculate TD error to update priorities
-        td_errors = q_targets - q_expected
 
         # Compute loss...
         if self.use_priority:
-            loss  = (td_errors.pow(2) * weights).mean()
+            # Calculate TD error to update priorities
+            prior = (q_targets - q_expected).pow(2) * weights
+            loss  = prior.mean()
         else:
             loss = F.mse_loss(q_expected, q_targets)
         
@@ -194,7 +219,7 @@ class DQNAgent:
         self.optimizer.step() 
         
         if self.use_priority:
-            self.memory.update(indices, td_errors.detach().numpy())
+            self.memory.update(indices, prior.detach().cpu().numpy())
 
         # Update target network
         self.soft_update(self.tau)    
@@ -204,12 +229,13 @@ class DQNAgent:
             θ_target = τ*θ_local + (1 - τ)*θ_target
 
         Args:
-            local_model (PyTorch model): Weights will be copied from
-            target_model (PyTorch model): Weights will be copied to
-            tau (float): Interpolation parameter 
+            local_model (PyTorch model): weights will be copied from
+            target_model (PyTorch model): weights will be copied to
+            tau (float): interpolation parameter 
         """
         
-        for target_param, local_param in zip(self.qn_target.parameters(), self.qn_local.parameters()):
+        for target_param, local_param in zip(self.qn_target.parameters(), 
+                                             self.qn_local.parameters()):
             target_param.data.copy_(tau * local_param + (1.0 - tau) * target_param)
     
     def make_filename(self, filename):
@@ -229,7 +255,7 @@ class DQNAgent:
     
     def summary(self):
         print('DQNAgent:')
-        print('=========')
+        print('========')
         print('')
         print('Using Double:', self.use_double)
         print('Using Dueling:', self.use_dueling)
