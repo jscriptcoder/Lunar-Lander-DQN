@@ -59,28 +59,26 @@ class DQNAgent:
         self.use_noise = use_noise
         
         random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
 
         # Q-Network
         if use_dueling:
             self.qn_local = DuelingQNetwork(state_size, 
                                             action_size, 
-                                            seed, 
                                             noisy=use_noise).to(device)
         else:
             self.qn_local = QNetwork(state_size, 
                                      action_size, 
-                                     seed, 
                                      noisy=use_noise).to(device)
         
         if use_dueling:
             self.qn_target = DuelingQNetwork(state_size, 
                                              action_size, 
-                                             seed, 
                                              noisy=use_noise).to(device)
         else:
             self.qn_target = QNetwork(state_size, 
                                       action_size, 
-                                      seed, 
                                       noisy=use_noise).to(device)
         
         # Initialize target model parameters with local model parameters
@@ -90,9 +88,9 @@ class DQNAgent:
         self.optimizer = optim.Adam(self.qn_local.parameters(), lr=lr)
 
         if use_priority:
-            self.memory = PrioritizedReplayBuffer(buffer_size, batch_size, seed=seed)
+            self.memory = PrioritizedReplayBuffer(buffer_size, batch_size)
         else:
-            self.memory = ReplayBuffer(buffer_size, batch_size, seed=seed)
+            self.memory = ReplayBuffer(buffer_size, batch_size)
             
         # Initialize time step (for updating every update_every steps)
         self.t_step = 0
@@ -208,8 +206,8 @@ class DQNAgent:
         # Compute loss...
         if self.use_priority:
             # Calculate TD error to update priorities
-            prior = (q_targets - q_expected).pow(2) * weights
-            loss  = prior.mean()
+            weighted_td_errors = weights * (q_targets - q_expected) ** 2 
+            loss  = weighted_td_errors.mean()
         else:
             loss = F.mse_loss(q_expected, q_targets)
         
@@ -219,7 +217,7 @@ class DQNAgent:
         self.optimizer.step() 
         
         if self.use_priority:
-            self.memory.update(indices, prior.detach().cpu().numpy())
+            self.memory.update(indices, weighted_td_errors.detach().cpu().numpy())
 
         # Update target network
         self.soft_update(self.tau)    

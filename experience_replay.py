@@ -12,9 +12,8 @@ class ReplayBuffer:
     Args:
         buffer_size (int)
         batch_size (int)
-        seed (int)
     """
-    def __init__(self, buffer_size, batch_size, seed):
+    def __init__(self, buffer_size, batch_size):
         self.buffer = deque(maxlen=buffer_size)  # internal buffer (deque)
         self.batch_size = batch_size
         self.experience = namedtuple("Experience", 
@@ -23,7 +22,6 @@ class ReplayBuffer:
                                                   "reward", 
                                                   "next_state", 
                                                   "done"])
-        random.seed(seed)
 
     def add(self, state, action, reward, next_state, done):
         """Save experience in memory"""
@@ -54,7 +52,6 @@ class PrioritizedReplayBuffer:
     Args:
         buffer_size (int)
         batch_size (int)
-        seed (int)
     
     Attributes:
         epsilon (float): 
@@ -78,7 +75,7 @@ class PrioritizedReplayBuffer:
     beta = .4
     beta_inc_per_sampling = 0.001
     
-    def __init__(self, buffer_size, batch_size, seed):
+    def __init__(self, buffer_size, batch_size):
         self.buffer_size = buffer_size
         self.batch_size = batch_size
         self.buffer = []
@@ -90,7 +87,6 @@ class PrioritizedReplayBuffer:
                                                   "reward", 
                                                   "next_state", 
                                                   "done"])
-        np.random.seed(seed)
     
     def add(self, state, action, reward, next_state, done):
         """Save experience in memory, giving maximum priosity to new experiences"""
@@ -130,8 +126,8 @@ class PrioritizedReplayBuffer:
         self.beta = np.min([1., self.beta + self.beta_inc_per_sampling])
         
         # Compute importance-sampling weight
-        N = len(self.buffer)
-        weights = (N * probs[indices]) ** (-self.beta)
+        total = len(self.buffer)
+        weights = (total * probs[indices]) ** (-self.beta)
         weights /= weights.max()
         weights = np.array(weights, dtype=np.float32)
         
@@ -144,7 +140,8 @@ class PrioritizedReplayBuffer:
             indices (Numpy array of int)
             td_errors (Numpy array of float)
         """
-        prios = np.abs(td_errors) + self.epsilon
+#        prios = np.abs(td_errors) + self.epsilon
+        prios = td_errors + self.epsilon
         for idx, prio in zip(indices, prios):
             self.priorities[idx] = prio
 

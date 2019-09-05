@@ -11,7 +11,7 @@ gym.logger.set_level(40)
 def make_env(env_id, 
              use_monitor=False, 
              monitor_dir='recordings', 
-             seed=0):
+             seed=42):
     """Instantiates the OpenAI Gym environment
     
     Args:

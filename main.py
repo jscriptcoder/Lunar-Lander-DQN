@@ -1,7 +1,7 @@
 # Import the necessary packages
 from utils import make_env, run_gym, train_agent, plot_scores
 
-env = make_env('LunarLander-v2')
+env = make_env('LunarLander-v2', use_monitor=True)
 
 print('State shape: ', env.observation_space.shape)
 print('Number of actions: ', env.action_space.n)
@@ -18,9 +18,9 @@ action_size = env.action_space.n
 agent = DQNAgent(state_size=state_size, action_size=action_size, 
 #                 use_double=True, 
 #                 use_dueling=True, 
-                 use_priority=True,
-#                 use_noise=True,
-                 seed=0
+#                 use_priority=True,
+                 use_noise=True,
+                 seed=42
                 )
 
 agent.summary()
@@ -30,7 +30,7 @@ agent.summary()
 
 scores = train_agent(agent, env)
 
-plot_scores(scores, 'Prioritized  Deep Q-Network', polyfit_deg=6)
+plot_scores(scores, 'NoisyNets Deep Q-Network', polyfit_deg=6)
 
 #agent.load_weights('prioritized_local_weights.pth')
 

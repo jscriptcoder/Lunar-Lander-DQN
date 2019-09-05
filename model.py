@@ -2,8 +2,6 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn import init, Parameter
-from torch.autograd import Variable
 
 
 class NoisyLinear(nn.Linear):
@@ -27,18 +25,15 @@ class NoisyLinear(nn.Linear):
                  out_features, 
                  sigma_init=0.017, 
                  bias=True):
+        super().__init__(in_features, out_features, bias=True)
         
-        super(NoisyLinear, self).__init__(in_features, out_features, bias=True)
-        
-        self.sigma_init = sigma_init
-        self.sigma_weight = Parameter(torch.full((out_features, 
+        self.sigma_weight = nn.Parameter(torch.full((out_features, 
                                                   in_features), sigma_init))
         self.register_buffer('epsilon_weight', torch.zeros(out_features, 
                                                            in_features))
         
-        
         if bias:
-            self.sigma_bias = Parameter(torch.full((out_features,), sigma_init))
+            self.sigma_bias = nn.Parameter(torch.full((out_features,), sigma_init))
             self.register_buffer('epsilon_bias', torch.zeros(out_features))
             
         self.reset_parameters()
@@ -48,10 +43,12 @@ class NoisyLinear(nn.Linear):
         bias = self.bias
         
         if self.training:
-            weights = self.weight + self.sigma_weight * Variable(self.epsilon_weight)
+            self.epsilon_weight.normal_()
+            weights = self.weight + self.sigma_weight * self.epsilon_weight
             
             if self.hasBias():
-                bias = self.bias + self.sigma_bias * Variable(self.epsilon_bias)
+                self.epsilon_bias.normal_()
+                bias = self.bias + self.sigma_bias * self.epsilon_bias
 
         return F.linear(input, weights, bias)
     
@@ -60,10 +57,10 @@ class NoisyLinear(nn.Linear):
     
     def reset_parameters(self):
         std = math.sqrt(3 / self.in_features)
-        init.uniform_(self.weight, -std, std)
+        self.weight.data.uniform_(-std, std)
         
         if self.hasBias():
-            init.uniform_(self.bias, -std, std)
+            self.bias.data.uniform_(-std, std)
 
 
 class QNetwork(nn.Module):
@@ -73,7 +70,6 @@ class QNetwork(nn.Module):
     Args:
         state_size (int)
         action_size (int)
-        seed (int)
         noisy (bool): whether or not to add noisy layers
     
     Attributes:
@@ -82,11 +78,8 @@ class QNetwork(nn.Module):
         fc3 (Linear | NoisyLinear): Hidden layer (64, 128)
         fc4 (Linear | NoisyLinear): Output layer (128, action_size)
     """
-    def __init__(self, state_size, action_size, seed, noisy=False):
-        super(QNetwork, self).__init__()
-        
-        self.seed = torch.manual_seed(seed)
-        
+    def __init__(self, state_size, action_size, noisy=False):
+        super().__init__()
         self.fc1 = nn.Linear(state_size, 32)
         
         if noisy:
@@ -119,7 +112,6 @@ class DuelingQNetwork(nn.Module):
     Args:
         state_size (int)
         action_size (int)
-        seed (int)
         noisy (bool): whether or not to add noisy layers
     
     Attributes:
@@ -136,10 +128,8 @@ class DuelingQNetwork(nn.Module):
             Hidden layer: (128, 256)
             Output layer: (256, 1)
     """
-    def __init__(self, state_size, action_size, seed, noisy=False):
-        super(DuelingQNetwork, self).__init__()
-        
-        self.seed = torch.manual_seed(seed)
+    def __init__(self, state_size, action_size, noisy=False):
+        super().__init__()
         
         # TODO: add noisy layers
         
