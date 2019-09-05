@@ -1,6 +1,6 @@
-# Deep Q Network - LunarLander OpenAI Gym environment
+# Deep Q Network - SpaceX Rocket Landing
 
-The goal of this repository is to study relatively in depth value-based Reinforcement Learning algorithms using deep neural networks as function approximators. We're gonna use Deep Q-Network algorithm and different improvements to solve the OpenAI Gym [LunarLander](https://gym.openai.com/envs/LunarLander-v2/) environment.
+The goal of this repository is to study in depth value-based Reinforcement Learning algorithms using deep neural networks as function approximators. We're gonna use Deep Q-Network algorithm and different improvements to solve the OpenAI Gym [Rocket Lander](https://github.com/Jeetu95/Rocket_Lander_Gym) environment.
 
 ### Implemented algorithms and their papers:
 1. [x] Deep Q Learning (DQN): [Human-level control through Deep Reinforcement Learning](http://www.readcube.com/articles/10.1038/nature14236)
